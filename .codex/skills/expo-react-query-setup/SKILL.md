@@ -14,7 +14,7 @@ How to install, configure, and use @tanstack/react-query in Expo/React Native pr
 
 ## Quick start
 
-- Install deps: `bunx expo install @tanstack/react-query`.
+- Install deps: `bunx expo install @tanstack/react-query` if a `bun.lock` file is present.
 - Create a shared `queryClient` and wrap the app with `QueryClientProvider`.
 - Use array query keys and export `fetchX` + `xQuery` helpers for reuse.
 
@@ -78,8 +78,10 @@ export default function MoviesScreen() {
 - Clear cache with `queryClient.clear()` only in exceptional cases (e.g., logout).
 
 ## Offline modal + provider (optional)
+
 - Install: `bunx expo install expo-network` (and keep @tanstack/react-query installed).
 - Connectivity provider (create `providers/ConnectivityProvider.tsx`):
+
 ```ts
 import { onlineManager } from "@tanstack/react-query";
 import * as Network from "expo-network";
@@ -93,11 +95,18 @@ import {
 } from "react";
 import { AppState, AppStateStatus } from "react-native";
 
-type ConnectivityContextValue = { isOnline: boolean; refresh: () => Promise<boolean> };
+type ConnectivityContextValue = {
+  isOnline: boolean;
+  refresh: () => Promise<boolean>;
+};
 
-const ConnectivityContext = createContext<ConnectivityContextValue | undefined>(undefined);
+const ConnectivityContext = createContext<ConnectivityContextValue | undefined>(
+  undefined
+);
 
-const deriveOnlineStatus = (state: Network.NetworkState | null | undefined): boolean => {
+const deriveOnlineStatus = (
+  state: Network.NetworkState | null | undefined
+): boolean => {
   if (!state) return true;
   if (state.isInternetReachable === false) return false;
   return Boolean(state.isConnected);
@@ -131,7 +140,10 @@ export const ConnectivityProvider = ({ children }: PropsWithChildren) => {
     const handleAppStateChange = (status: AppStateStatus) => {
       if (status === "active") refresh();
     };
-    const appStateSubscription = AppState.addEventListener("change", handleAppStateChange);
+    const appStateSubscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
     return () => {
       subscription.remove();
       appStateSubscription.remove();
@@ -147,32 +159,51 @@ export const ConnectivityProvider = ({ children }: PropsWithChildren) => {
 
 export const useConnectivity = () => {
   const ctx = useContext(ConnectivityContext);
-  if (!ctx) throw new Error("useConnectivity must be used within ConnectivityProvider");
+  if (!ctx)
+    throw new Error("useConnectivity must be used within ConnectivityProvider");
   return ctx;
 };
 ```
+
 - Offline UI (create `components/OfflineModal.tsx` and export from your components index):
   - If you have a custom Text component/alias (e.g., `@/components/Text`), update the import accordingly; otherwise use `import { Text } from "react-native"`.
+
 ```tsx
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { SymbolView } from "expo-symbols";
-import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import { Text } from "./Text"; // change to your project’s Text component or react-native Text
 
-type OfflineNoticeProps = { onRetry?: () => Promise<void> | void; isChecking?: boolean };
+type OfflineNoticeProps = {
+  onRetry?: () => Promise<void> | void;
+  isChecking?: boolean;
+};
 type OfflineModalProps = OfflineNoticeProps & { visible: boolean };
 
 export const OfflineNotice = ({ onRetry, isChecking }: OfflineNoticeProps) => (
   <View style={styles.card}>
     <View style={styles.iconBadge}>
       {Platform.OS === "ios" ? (
-        <SymbolView name="wifi.slash" tintColor="#ef4444" style={{ width: 26, height: 26 }} />
+        <SymbolView
+          name="wifi.slash"
+          tintColor="#ef4444"
+          style={{ width: 26, height: 26 }}
+        />
       ) : (
         <MaterialIcons name="wifi-off" size={26} color="#ef4444" />
       )}
     </View>
     <Text style={styles.title}>You are offline</Text>
-    <Text style={styles.subtitle}>Connect to Wi-Fi or cellular data to continue browsing.</Text>
+    <Text style={styles.subtitle}>
+      Connect to Wi-Fi or cellular data to continue browsing.
+    </Text>
     {onRetry ? (
       <Pressable
         style={({ pressed }) => [
@@ -185,15 +216,28 @@ export const OfflineNotice = ({ onRetry, isChecking }: OfflineNoticeProps) => (
         accessibilityRole="button"
         accessibilityLabel="Retry connection"
       >
-        {isChecking ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonLabel}>Retry</Text>}
+        {isChecking ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonLabel}>Retry</Text>
+        )}
       </Pressable>
     ) : null}
   </View>
 );
 
-export function OfflineModal({ visible, onRetry, isChecking }: OfflineModalProps) {
+export function OfflineModal({
+  visible,
+  onRetry,
+  isChecking,
+}: OfflineModalProps) {
   return (
-    <Modal animationType="fade" transparent visible={visible} statusBarTranslucent>
+    <Modal
+      animationType="fade"
+      transparent
+      visible={visible}
+      statusBarTranslucent
+    >
       <View style={styles.backdrop}>
         <OfflineNotice onRetry={onRetry} isChecking={isChecking} />
       </View>
@@ -229,7 +273,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: { fontSize: 18, textAlign: "center" },
-  subtitle: { fontSize: 14, textAlign: "center", lineHeight: 20, color: "#6b7280" },
+  subtitle: {
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
+    color: "#6b7280",
+  },
   button: {
     marginTop: 4,
     backgroundColor: "#007AFF",
@@ -244,7 +293,9 @@ const styles = StyleSheet.create({
   buttonLabel: { color: "#fff", fontWeight: "600" },
 });
 ```
+
 - Modal route (create `app/(modals)/offline.tsx`):
+
 ```tsx
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -287,4 +338,5 @@ const styles = StyleSheet.create({
   },
 });
 ```
+
 - Layout guard (in `app/_layout.tsx`): after wrapping with `QueryClientProvider` and `ConnectivityProvider`, watch `isOnline` and `router.replace("/(modals)/offline")` when offline, so queries pause and users see the modal.
