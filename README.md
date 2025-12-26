@@ -16,3 +16,8 @@
 - expo-react-query-setup — Install and wire @tanstack/react-query in Expo/React Native apps (providers, query client, fetch patterns, screen usage).
 - skill-creator — Create or update Codex skills that capture specialized workflows or integrations.
 - skill-installer — Install Codex skills into `$CODEX_HOME/skills` from the curated list or a GitHub repo (including private repos).
+
+## Resources
+
+- [Codex Skills documentation](https://developers.openai.com/codex/skills#where-to-save-skills)
+- [Agent Skills documentation](https://agentskills.io/integrate-skills)
