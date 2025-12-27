@@ -11,7 +11,7 @@ metadata:
 
 ## Overview
 
-Actionable playbook for adding features, managing boilerplate code, implementing modern navigation patterns using Expo Router, state management, fixing bugs, and shipping UI and logic in cross-platform mobile applications using Expo and React Native projects.
+Actionable playbook for adding features, managing boilerplate code, implementing modern navigation patterns using Expo Router, state management, fixing bugs, and shipping UI and logic in cross-platform mobile applications using Expo and React Native projects. Repo defaults: `src/` app root with `@` alias (see `tsconfig.json`), Expo Router in `src/app`, and React Query provider in `src/app/_layout.tsx`.
 
 ## Navigation guardrails (avoid common mistakes)
 
@@ -39,14 +39,20 @@ src/app/
 Minimal layout snippets:
 
 ```ts
-// app/_layout.tsx
+// src/app/_layout.tsx
+// Root layout with React Query provider
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
+
+const queryClient = new QueryClient();
 
 export default function RootLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-    </Stack>
+    <QueryClientProvider client={queryClient}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+    </QueryClientProvider>
   );
 }
 ```
@@ -121,6 +127,15 @@ const styles = StyleSheet.create({
 - **State and props**: Type all props; use `PropsWithChildren` instead of `ReactNode` where linted. Keep derived state memoized; avoid heavy work in render.
 - **Accessibility**: Add labels on non-obvious pressables, ensure comfortable hit areas, and keep touch targets platform-appropriate.
 
+### Components to reuse (ui patterns)
+
+- Posters & fallbacks: `MoviePosterItem` uses `expo-image` + `makeImageUrl` with a gray placeholder; keep sizes 140x210, radius 12, `contentFit="cover"` and `transition`.
+- Horizontal rows: `MovieRow` renders a titled row with `ScrollView` and `Link` to `/(tabs)/(home)/[id]`; uses gesture-handler `Pressable` for “See all” and blue accent `#007AFF`.
+- Gallery: `PosterGallery` for detail screens; horizontal posters with `ChevronRightIcon` and `makeImageUrl` guard.
+- Screen states: `ScreenState` for loading/error with `ActivityIndicator` `#007AFF` and centered copy; prefer this instead of ad-hoc spinners.
+- Hero blocks: `DetailsHero` (blurred backdrop via `expo-image`, overlay, `MoviePosterHero` + `GenreChips` + `MovieFactRow`), rounded cards and layered backgrounds.
+- Conventions: 2-space indent, double quotes, `@/` imports, `expo-image` for media, `FlatList`/`ScrollView` with pull-to-refresh, and link-driven nav (`expo-router` `Link`) for items.
+
 ## Instructions
 
 ### 1. Project Setup and Navigation
@@ -128,15 +143,20 @@ const styles = StyleSheet.create({
 #### Basic setup
 
 ```tsx
-// app/_layout.tsx
-// Create root layout for the app
-import { Stack, useRouter } from "expo-router";
+// src/app/_layout.tsx
+// Create root layout for the app with React Query provider
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Stack } from "expo-router";
+
+const queryClient = new QueryClient();
 
 export default function RootLayout() {
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-    </Stack>
+    <QueryClientProvider client={queryClient}>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack>
+    </QueryClientProvider>
   );
 }
 ```
@@ -144,8 +164,8 @@ export default function RootLayout() {
 #### Create a tab navigator
 
 ```tsx
-// app/(tabs)/_layout.tsx
-// Create a tab navigator and use the NativeTabs component from expo-router/unstable-native-tabs
+// src/app/(tabs)/_layout.tsx
+// Tab navigator using NativeTabs (expo-router/unstable-native-tabs)
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   Icon,
@@ -158,36 +178,26 @@ import { Platform } from "react-native";
 export default function TabLayout() {
   return (
     <NativeTabs
-      backgroundColor={Platform.select({
-        android: "#FFFFFF",
-      })}
+      backgroundColor={Platform.select({ android: "#FFFFFF" })}
       minimizeBehavior="onScrollDown"
       iconColor={Platform.select({
-        android: {
-          default: "#000000",
-          selected: "#007AFF",
-        },
+        android: { default: "#0f172a", selected: "#2563eb" },
       })}
       labelVisibilityMode="labeled"
       labelStyle={Platform.select({
         android: {
-          default: {
-            color: "#000000",
-          },
-          selected: {
-            color: "#007AFF",
-          },
+          default: { color: "#0f172a" },
+          selected: { color: "#2563eb" },
         },
       })}
-      indicatorColor={Platform.select({
-        android: "#E9F3FF",
-      })}
+      indicatorColor={Platform.select({ android: "#e0e7ff" })}
     >
-      {/* Home tab will always be a nested stack */}
       <NativeTabs.Trigger name="(home)">
         {Platform.select({
           ios: <Icon sf={{ default: "film", selected: "film.fill" }} />,
-          android: <Icon src={<VectorIcon family={Ionicons} name="film" />} />,
+          android: (
+            <Icon src={<VectorIcon family={Ionicons} name="film-outline" />} />
+          ),
         })}
         <Label>Home</Label>
       </NativeTabs.Trigger>
@@ -199,12 +209,13 @@ export default function TabLayout() {
             />
           ),
           android: (
-            <Icon src={<VectorIcon family={Ionicons} name="settings" />} />
+            <Icon
+              src={<VectorIcon family={Ionicons} name="settings-outline" />}
+            />
           ),
         })}
         <Label>Settings</Label>
       </NativeTabs.Trigger>
-      {/* Optional */}
       <NativeTabs.Trigger name="search" role="search">
         {Platform.select({
           ios: (
@@ -226,7 +237,7 @@ export default function TabLayout() {
 #### Boilerplate screens
 
 ```tsx
-// app/(tabs)/(home)/index.tsx
+// src/app/(tabs)/(home)/index.tsx
 // Create a home screen
 import { Link } from "expo-router";
 import { View } from "react-native";
@@ -247,7 +258,7 @@ export default function Home() {
 ```
 
 ```tsx
-// app/(tabs)/(home)/[id].tsx
+// src/app/(tabs)/(home)/[id].tsx
 // Create a details screen
 import { useLocalSearchParams } from "expo-router";
 import { Text, View } from "react-native";
@@ -264,7 +275,7 @@ export default function Details() {
 ```
 
 ```tsx
-// app/(tabs)/(home)/_layout.tsx
+// src/app/(tabs)/(home)/_layout.tsx
 // Create a layout for the home screen
 import { Stack } from "expo-router";
 import { Platform } from "react-native";
@@ -305,7 +316,7 @@ export default function HomeLayout() {
 ```
 
 ```tsx
-// app/(tabs)/settings/index.tsx
+// src/app/(tabs)/settings/index.tsx
 // Create a settings screen
 import { Text, View } from "react-native";
 
@@ -325,7 +336,7 @@ export default function Settings() {
 ```
 
 ```tsx
-// app/(tabs)/settings/_layout.tsx
+// src/app/(tabs)/settings/_layout.tsx
 // Create a layout for the settings screen
 import { Stack } from "expo-router";
 
@@ -346,7 +357,7 @@ export default function SettingsLayout() {
 ```
 
 ```tsx
-// app/(tabs)/search/index.tsx
+// src/app/(tabs)/search/index.tsx
 // Create a search screen
 import { Text, View } from "react-native";
 
@@ -366,7 +377,7 @@ export default function Search() {
 ```
 
 ```tsx
-// app/(tabs)/search/_layout.tsx
+// src/app/(tabs)/search/_layout.tsx
 // Create a layout for the search screen
 import { Stack } from "expo-router";
 
@@ -389,24 +400,17 @@ export default function SearchLayout() {
 }
 ```
 
-### 2. API integration
+### 2. API integration (TMDB example in `src/services`)
 
-Add all config and API calls in the `services` folder.
+Add config and API calls in `src/services` with env-driven API key and `@/` imports.
 
-```tsx
-// services/config.ts
-
-// Boilerplate
-export const API_KEY = "";
-export const API_BASE_URL = "";
-
-// For example apps using TMDB API
+```ts
+// src/services/config.ts
 export const TMDB_API_BASE_URL = "https://api.themoviedb.org/3";
-export const TMDB_API_KEY = "";
-
 export const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
 export const TMDB_POSTER_SIZE = "w500";
-export const TMDB_PROFILE_SIZE = "w185";
+
+export const TMDB_API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? "";
 
 export const makeImageUrl = (
   path?: string | null,
@@ -417,20 +421,9 @@ export const makeImageUrl = (
 };
 ```
 
-```tsx
-// services/index.ts
-// Generic helper (optional)
-// import { API_BASE_URL, API_KEY } from "./config";
-// export const fetchData = async (url: string) => {
-//   const response = await fetch(`${API_BASE_URL}${url}?api_key=${API_KEY}`);
-//   if (!response.ok) {
-//     throw new Error(`API request failed: ${response.status}`);
-//   }
-//   return response.json();
-// };
-
-// TMDB example
-import { TMDB_API_BASE_URL, TMDB_API_KEY } from "./config";
+```ts
+// src/services/movies.ts
+import { TMDB_API_BASE_URL, TMDB_API_KEY } from "@/services/config";
 
 export type Movie = {
   id: number;
@@ -440,76 +433,33 @@ export type Movie = {
   backdrop_path: string | null;
   release_date: string;
   vote_average: number;
-  runtime: number | null;
-};
-type PopularMoviesResponse = {
-  results: Movie[];
 };
 
-export type CastMember = {
-  id: number;
-  name: string;
-  character: string;
-  profile_path: string | null;
-  order: number;
+type PopularMoviesResponse = { results: Movie[] };
+
+const ensureApiKey = () => {
+  if (!TMDB_API_KEY) {
+    throw new Error(
+      "TMDB API key missing. Set EXPO_PUBLIC_TMDB_API_KEY to fetch movies."
+    );
+  }
 };
 
-export type CrewMember = {
-  id: number;
-  name: string;
-  job: string;
-  department: string;
-  profile_path: string | null;
-};
-
-export type CreditsResponse = {
-  id: number;
-  cast: CastMember[];
-  crew: CrewMember[];
-};
-
-/**
- * Fetches a single page of TMDB's "popular" movies list.
- */
 export const fetchPopularMovies = async (page = 1): Promise<Movie[]> => {
+  ensureApiKey();
   const response = await fetch(
     `${TMDB_API_BASE_URL}/movie/popular?language=en-US&page=${page}&api_key=${TMDB_API_KEY}`
   );
-
   if (!response.ok) {
     throw new Error(`TMDB popular movies request failed: ${response.status}`);
   }
-
   const data = (await response.json()) as PopularMoviesResponse;
-
   return data.results;
 };
 
 export const popularMoviesQuery = (page = 1) => ({
   queryKey: ["popularMovies", page],
   queryFn: () => fetchPopularMovies(page),
-});
-
-/*
- * Fetches the details of a single movie.
- */
-export const fetchMovieDetails = async (movieId: number) => {
-  const response = await fetch(
-    `${TMDB_API_BASE_URL}/movie/${movieId}?language=en-US&api_key=${TMDB_API_KEY}`
-  );
-
-  if (!response.ok) {
-    throw new Error(`TMDB movie details request failed: ${response.status}`);
-  }
-
-  const data = (await response.json()) as Movie;
-
-  return data;
-};
-
-export const movieDetailsQuery = (movieId: number) => ({
-  queryKey: ["movieDetails", movieId],
-  queryFn: () => fetchMovieDetails(movieId),
 });
 ```
 

@@ -21,15 +21,18 @@ How to install, configure, and use @tanstack/react-query in Expo/React Native pr
 ## Provider setup (app entry)
 
 ```tsx
-// app/_layout.tsx (Expo Router example)
+// src/app/_layout.tsx (Expo Router example)
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Stack } from "expo-router";
 
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      {/* your navigation/providers */}
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+      </Stack>
     </QueryClientProvider>
   );
 }
@@ -38,20 +41,36 @@ export default function RootLayout() {
 ## Service + query helper pattern
 
 ```ts
-// services/movies.ts
-const API_BASE = "https://api.example.com";
+// src/services/movies.ts
+import { TMDB_API_BASE_URL, TMDB_API_KEY } from "@/services/config";
 
-export type Movie = { id: number; title: string };
-
-export const fetchMovies = async (): Promise<Movie[]> => {
-  const res = await fetch(`${API_BASE}/movies`);
-  if (!res.ok) throw new Error(`Movies request failed: ${res.status}`);
-  return res.json();
+export type Movie = {
+  id: number;
+  title: string;
+  vote_average: number;
+  poster_path: string | null;
 };
 
-export const moviesQuery = () => ({
-  queryKey: ["movies"],
-  queryFn: fetchMovies,
+const ensureApiKey = () => {
+  if (!TMDB_API_KEY) {
+    throw new Error(
+      "TMDB API key missing. Set EXPO_PUBLIC_TMDB_API_KEY before fetching."
+    );
+  }
+};
+
+export const fetchPopularMovies = async (): Promise<Movie[]> => {
+  ensureApiKey();
+  const res = await fetch(
+    `${TMDB_API_BASE_URL}/movie/popular?language=en-US&page=1&api_key=${TMDB_API_KEY}`
+  );
+  if (!res.ok) throw new Error(`Movies request failed: ${res.status}`);
+  return (await res.json()).results;
+};
+
+export const popularMoviesQuery = () => ({
+  queryKey: ["popularMovies"],
+  queryFn: fetchPopularMovies,
 });
 ```
 
@@ -59,13 +78,74 @@ export const moviesQuery = () => ({
 
 ```tsx
 import { useQuery } from "@tanstack/react-query";
-import { moviesQuery } from "@/services/movies";
+import { Image } from "expo-image";
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+import { makeImageUrl } from "@/services/config";
+import { popularMoviesQuery } from "@/services/movies";
 
 export default function MoviesScreen() {
-  const { data, isLoading, error } = useQuery(moviesQuery());
-  if (isLoading) return <LoadingView />;
-  if (error) return <ErrorView message={error.message} />;
-  return <MoviesList movies={data ?? []} />;
+  const { data, isLoading, isError, refetch, isRefetching, error } = useQuery(
+    popularMoviesQuery()
+  );
+
+  if (isLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text>Loading popular movies…</Text>
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorTitle}>Could not load movies</Text>
+        <Text style={styles.errorText}>
+          {error instanceof Error ? error.message : "Try again."}
+        </Text>
+        <TouchableOpacity onPress={() => refetch()} style={styles.retry}>
+          <Text style={styles.retryLabel}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView
+      contentContainerStyle={styles.listContent}
+      refreshControl={
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+      }
+    >
+      {data?.map((movie) => {
+        const posterUri = makeImageUrl(movie.poster_path);
+        return (
+          <View key={movie.id} style={styles.card}>
+            {posterUri ? (
+              <Image source={{ uri: posterUri }} style={styles.poster} />
+            ) : (
+              <View style={styles.posterPlaceholder}>
+                <Text>No poster</Text>
+              </View>
+            )}
+            <View style={styles.cardBody}>
+              <Text style={styles.title}>{movie.title}</Text>
+              <Text style={styles.meta}>★ {movie.vote_average.toFixed(1)}</Text>
+            </View>
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
 }
 ```
 
@@ -76,6 +156,7 @@ export default function MoviesScreen() {
 - If you have an offline modal/provider, read connectivity before firing heavy requests.
 - Use `staleTime`/`cacheTime` to tune refetching; default is fine for many screens.
 - Clear cache with `queryClient.clear()` only in exceptional cases (e.g., logout).
+- Guard fetchers that need public keys (e.g., TMDB) and surface friendly error/loading states with pull-to-refresh.
 
 ## Offline modal + provider (optional)
 
