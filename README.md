@@ -14,8 +14,6 @@
 - expo-app-config-variants — Convert `app.json` to `app.config.ts` and manage dev/staging/prod variants (IDs, schemes, icons, env) with expo-dev-client.
 - expo-app-setup — Build, refactor, and debug Expo + React Native apps (Expo Router layouts, navigation scaffolding, theming, data fetching, offline handling, local tooling).
 - expo-react-query-setup — Install and wire @tanstack/react-query in Expo/React Native apps (providers, query client, fetch patterns, screen usage).
-- skill-creator — Create or update Codex skills that capture specialized workflows or integrations.
-- skill-installer — Install Codex skills into `$CODEX_HOME/skills` from the curated list or a GitHub repo (including private repos).
 
 ## Resources
 
